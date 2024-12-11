@@ -35,13 +35,13 @@ LogisticRegression() на мешке слов
 
               precision    recall  f1-score   support
 
-          -1       0.67      0.67      0.67         6
-           0       0.64      0.64      0.64        11
-           1       0.71      0.71      0.71         7
+          -1       0.57      0.50      0.53         8
+           0       0.36      0.40      0.38        10
+           1       0.43      0.43      0.43         7
 
-    accuracy                           0.67        24
-    macro avg      0.67      0.67      0.67        24
-    weighted avg   0.67      0.67      0.67        24
+    accuracy                           0.44        25
+    macro avg      0.45      0.44      0.45        25
+    weighted avg   0.45      0.44      0.44        25
 
 
 
