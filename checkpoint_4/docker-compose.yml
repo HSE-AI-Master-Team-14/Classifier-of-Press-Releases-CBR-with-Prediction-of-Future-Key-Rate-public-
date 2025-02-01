@@ -1,5 +1,3 @@
-version: "3.9"
-
 services:
   fastapi:
     build: ./fastapi
@@ -11,6 +9,7 @@ services:
       - ./fastapi:/app
     restart: always
     container_name: fastapi_container
+    platform: linux/amd64
 
   streamlit:
     build:
@@ -26,6 +25,7 @@ services:
       - ./streamlit:/app
     restart: always
     container_name: streamlit_container
+    platform: linux/arm64
 
 networks:
   app-network:
