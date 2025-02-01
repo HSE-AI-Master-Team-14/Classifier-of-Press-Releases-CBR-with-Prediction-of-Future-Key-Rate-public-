@@ -3,4 +3,10 @@ uvicorn[standard]
 pydantic
 pandas
 joblib
-scikit-learn
+scikit-learn==1.6.1
+nltk
+pymystem3
+python-multipart
+openpyxl
+typing
+pathlib
