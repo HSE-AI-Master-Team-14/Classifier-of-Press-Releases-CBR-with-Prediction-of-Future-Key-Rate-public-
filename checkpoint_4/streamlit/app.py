@@ -4,8 +4,7 @@ import json
 import os
 import pandas as pd
 import io
-import matplotlib.pyplot as plt
-import seaborn as sns
+import time
 
 st.title("Предсказание ставки ЦБ на основе пресс-релизов")
 
@@ -46,7 +45,81 @@ def make_api_request(url, method="post", data=None):
             st.error(f"Непредвиденная ошибка: {e}")
             return None
 
-# Вкладка для одного предсказания
+# Вкладка для обучения модели
+st.subheader("Обучение модели")
+
+C_value = st.slider("Выберите значение C", min_value=0.01, max_value=100.0, value=1.0, step=0.01)
+
+# Кнопка для запуска обучения
+if st.button("Запустить обучение"):
+    st.write(f"Отправляемое значение C: {C_value}")
+    with st.spinner("Запуск обучения..."):
+        response = make_api_request(f"{api_url}/fit", method="post", data={"C": C_value})
+        
+        if response:
+            status = response.get("status")
+            message = response.get("message")
+            
+            if status == "training_started":
+                st.info(message)
+                
+                while True:
+                    time.sleep(2)
+                    result = make_api_request(f"{api_url}/fit_status", method="get")
+                    if result and result.get("status") in ["success", "error"]:
+                        st.success(f"Обучение завершено: {result.get('message')}")
+                        break
+                    elif result:
+                        st.info(f"Статус обучения: {result.get('status')}")
+                    else:
+                        st.error("Не удалось получить статус обучения.")
+                        break
+            else:
+                st.error(f"Ошибка: {message}")
+        else:
+            st.error("Не удалось запустить обучение модели.")
+
+# Вкладка для списка моделей
+st.subheader("Список моделей")
+if st.button("Получить список моделей"):
+    models = make_api_request(f"{api_url}/models", method="get")
+    if models:
+        for model in models:
+            st.write(f"Модель ID: {model['model_id']}")
+            st.write(f"Тип модели: {model['model_type']}")
+            st.write(f"Параметры модели: {model['model_params']}")
+            st.write("---")
+    else:
+        st.error("Не удалось получить список моделей.")
+
+# Вкладка для установки активной модели
+st.subheader("Установить активную модель")
+model_id = st.text_input("Введите ID модели")
+
+if st.button("Установить модель"):
+    response = make_api_request(f"{api_url}/set?model_id={model_id}", method="post")
+    if response:
+        st.success(f"Модель '{model_id}' установлена как активная.")
+    else:
+        st.error("Ошибка при установке модели.")
+
+# Вкладка для дообучения модели
+st.subheader("Дообучение модели")
+uploaded_file = st.file_uploader("Загрузите новый датасет для дообучения", type="xlsx")
+if uploaded_file and st.button("Дообучить модель"):
+    try:
+        files = {
+            "file": (uploaded_file.name, uploaded_file, "xlsx")
+        }
+        with st.spinner("Дообучение модели..."):
+            response = requests.post(f"{api_url}/retrain", files=files)
+            response.raise_for_status()
+            result = response.json()
+            st.success("Модель успешно дообучена!")
+    except Exception as e:
+        st.error(f"Ошибка при дообучении модели: {e}")
+
+# Вкладка для предсказания по одному пресс-релизу
 st.subheader("Предсказание по одному пресс-релизу")
 release_text = st.text_area("Вставьте текст пресс-релиза", height=200)
 if st.button("Сделать прогноз"):
@@ -67,89 +140,45 @@ if st.button("Сделать прогноз"):
     else:
         st.warning("Пожалуйста, вставьте текст пресс-релиза.")
 
-# Вкладка для множества предсказаний / Исследование датасета
-st.subheader("Обработка CSV файла")
-uploaded_file = st.file_uploader("Загрузите CSV файл с текстами пресс-релизов (колонка 'text')", type="csv")
-operation_type = st.radio("Выберите, что хотите сделать с датасетом:", ("Исследовать", "Предсказать ставку"))
-
-if st.button("Выполнить"):
-    if uploaded_file:
+# Вкладка для предсказания для нескольких пресс-релизов
+st.subheader("Предсказание для множества пресс-релизов")
+uploaded_file_multiple = st.file_uploader("Загрузите CSV файл с текстами пресс-релизов (колонка 'text')", type="csv")
+if uploaded_file_multiple and st.button("Получить предсказания"):
+    if uploaded_file_multiple:
         try:
-            df = pd.read_csv(uploaded_file, encoding='utf-8')
-            if df.empty:
-                st.error("DataFrame пустой. Проверьте содержимое CSV файла.")
-            elif 'text' not in df.columns:
+            df = pd.read_csv(uploaded_file_multiple, encoding='utf-8')
+            if 'text' not in df.columns:
                 st.error("CSV файл должен содержать колонку 'text'")
             else:
-                df = df.dropna(subset=['text'])
-                df = df[df['text'] != '']
-                if df.empty:
-                    st.error("После очистки DataFrame оказался пустым. Проверьте данные.")
-                else:
-                    if operation_type == "Предсказать ставку":
-                        data = [{"text": row['text']} for _, row in df.iterrows()]
-                        response_content = make_api_request(f"{api_url}/multiple_predict", data=data)
+                data = [{"text": row['text']} for _, row in df.iterrows()]
+                response_content = make_api_request(f"{api_url}/multiple_predict", data=data)
 
-                        if response_content:
-                            try:
-                                results = json.loads(response_content.decode('utf-8'))
-                                results_df = pd.DataFrame(results)
-                                csv_buffer = io.StringIO()
-                                results_df.to_csv(csv_buffer, index=False, encoding='utf-8')
-                                csv_buffer.seek(0)
-                                st.download_button(
-                                    label="Скачать в CSV",
-                                    data=csv_buffer.getvalue().encode('utf-8'),
-                                    file_name="predictions.csv",
-                                    mime="text/csv"
-                                )
-                            except json.JSONDecodeError:
-                                try:
-                                    st.download_button(
-                                        label="Скачать результаты в CSV",
-                                        data=response_content,
-                                        file_name="predictions.csv",
-                                        mime="text/csv"
-                                    )
-                                except Exception as e:
-                                    st.error(f"Ошибка при обработке ответа сервера (не JSON): {e}")
-                    elif operation_type == "Исследовать":
-                        st.write(f"**Количество строк:** {df.shape[0]}")
-                        st.write(f"**Количество колонок:** {df.shape[1]}")
-                        st.write("**Первые 5 строк:**")
-                        st.write(df.head())
-
-                        df['text_length'] = df['text'].str.len()
-
-                        st.write("**Статистика по длине пресс-релизов:**")
-                        st.write(f"Средняя длина: {df['text_length'].mean():.2f} символов")
-                        st.write(f"Минимальная длина: {df['text_length'].min()} символов")
-                        st.write(f"Максимальная длина: {df['text_length'].max()} символов")
-
-                        fig, ax = plt.subplots()
-                        sns.histplot(df['text_length'], ax=ax, bins=50)
-                        ax.set_title('Распределение длины пресс-релизов')
-                        ax.set_xlabel('Длина (количество символов)')
-                        ax.set_ylabel('Количество пресс-релизов')
-                        st.pyplot(fig)
-
-                        fig_box, ax_box = plt.subplots()
-                        sns.boxplot(x=df['text_length'], ax=ax_box)
-                        ax_box.set_title('Boxplot длины пресс-релизов')
-                        ax_box.set_xlabel('Длина (количество символов)')
-                        st.pyplot(fig_box)
-
+                if response_content:
+                    try:
+                        results = json.loads(response_content.decode('utf-8'))
+                        results_df = pd.DataFrame(results)
+                        csv_buffer = io.StringIO()
+                        results_df.to_csv(csv_buffer, index=False, encoding='utf-8')
+                        csv_buffer.seek(0)
+                        st.download_button(
+                            label="Скачать в CSV",
+                            data=csv_buffer.getvalue().encode('utf-8'),
+                            file_name="predictions.csv",
+                            mime="text/csv"
+                        )
+                    except json.JSONDecodeError:
+                        try:
+                            st.download_button(
+                                label="Скачать результаты в CSV",
+                                data=response_content,
+                                file_name="predictions.csv",
+                                mime="text/csv"
+                            )
+                        except Exception as e:
+                            st.error(f"Ошибка при обработке ответа сервера (не JSON): {e}")
         except pd.errors.ParserError as e:
             st.error(f"Ошибка при чтении CSV файла: {e}. Убедитесь, что файл имеет правильный формат и кодировку.")
         except Exception as e:
             st.error(f"Произошла непредвиденная ошибка: {e}")
     else:
         st.warning("Пожалуйста, загрузите CSV файл.")
-
-# Вкладка для информации о модели
-st.subheader("Информация о модели")
-if st.button("Получить информацию о модели"):
-    model_info = make_api_request(f"{api_url}/model_info", method="get")
-    if model_info:
-        st.write(f"**Название модели:** {model_info.get('model_name', 'Неизвестно')}")
-        st.write(f"**Версия модели:** {model_info.get('model_version', 'Неизвестно')}")
