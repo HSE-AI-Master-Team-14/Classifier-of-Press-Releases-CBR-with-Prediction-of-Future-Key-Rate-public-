@@ -34,19 +34,21 @@
 ## Демонстрация работы приложения
 
 1.**Сборка приложения:**
-  Видео https://disk.yandex.ru/i/PpJqElKLiHWQvw
+
+Видео https://disk.yandex.ru/i/PpJqElKLiHWQvw
  
 2. **Обучение модели:**
-   Видео https://disk.yandex.ru/i/QZSjARswtedE2g 
+
+Видео https://disk.yandex.ru/i/QZSjARswtedE2g 
 
 3. **Прогноз ставки по одному пресс-релизу и набору пресс-релизов в csv-файле:**
-   Видео https://disk.yandex.ru/i/RbSwoJia-FvJSw 
+
+Видео https://disk.yandex.ru/i/RbSwoJia-FvJSw 
    
 4. **Получение списка моделей, установка активной модели, получение информации о модели:**
-   Видео https://disk.yandex.ru/i/fCSENNU5hgvfCg
+
+Видео https://disk.yandex.ru/i/fCSENNU5hgvfCg
 
 5. **Дообучение модели:**
-   Видео https://disk.yandex.ru/i/6FaqNwA4wrO9SQ
 
-   
-
+Видео https://disk.yandex.ru/i/6FaqNwA4wrO9SQ
